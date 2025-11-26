@@ -1,7 +1,9 @@
 # CS-4120-01-Diabetes-Project-ML
 Set up and running instructions
 
-This project predicts diabetes disease progression using the Diabetes Dataset, which is publicly available in scikit-learn. datasets. We have built simple baseline models for both regression and classification in this project.
+#Entire code is first being fixed on the deefback from midpoint report and then we're implement a NN.
+
+This project predicts diabetes disease progression using the Diabetes Dataset, which is publicly available in scikit-learn. datasets. We train regression models to predict the continuos progression score and add a media n-based label to build classification baselines.
 
 To run the project, first clone our repository and open the folder in an appropriate IDE/terminal. Install all required packages, which are specified with the versions we used in requirements.txt. You don’t need to download the dataset manually; it loads automatically through src/data.py.
 
