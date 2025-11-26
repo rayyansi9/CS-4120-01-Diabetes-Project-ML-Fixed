@@ -1,16 +1,6 @@
-# Now we generate evaluation plots using the trained baseline models.
-
-import os
-import pandas as pd
-# All plots are now derived from the persisted models and the shared
-# train/val/test split to guarantee reproducibility. The script produces:
-
-#1. Target distribution bar plot
-#2. Correlation heatmap
-#3. Confusion matrix (Logistic Regression on the test split)
-#4. Residuals vs. predicted scatter plot (Linear Regression on the test split)
-
+# ...existing code...
 from __future__ import annotations
+
 from pathlib import Path
 import joblib
 import matplotlib.pyplot as plt
@@ -21,7 +11,7 @@ from data import add_class_label, load_diabetes_df
 from utils import ensure_dirs, get_split_indices
 
 FIGURES_DIR = Path("reports/figures")
-
+# ...existing code...
 
 def load_model(path: Path):
     if not path.exists():
@@ -30,12 +20,10 @@ def load_model(path: Path):
         )
     return joblib.load(path)
 
-
 def main() -> None:
     df = load_diabetes_df()
     df, _ = add_class_label(df)
 
-    # Loading the saved split indices
     splits = get_split_indices(df)
 
     # Features and targets
@@ -69,7 +57,6 @@ def main() -> None:
     plt.savefig(FIGURES_DIR / "correlation_heatmap.png")
     plt.close()
 
-
     log_reg = load_model(Path("models/logistic_regression.joblib"))
     y_pred_clf = log_reg.predict(X_test)
     cm = confusion_matrix(y_test_clf, y_pred_clf)
@@ -81,7 +68,6 @@ def main() -> None:
     plt.savefig(FIGURES_DIR / "confusion_matrix.png")
     plt.close()
 
-  
     lin_reg = load_model(Path("models/linear_regression.joblib"))
     y_pred_reg = lin_reg.predict(X_test)
     residuals = y_test_reg - y_pred_reg
@@ -98,6 +84,6 @@ def main() -> None:
 
     print(f"Saved figures to {FIGURES_DIR.resolve()}")
 
-
 if __name__ == "__main__":
     main()
+# ...existing code...ip
