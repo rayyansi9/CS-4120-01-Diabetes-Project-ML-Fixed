@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+# Ensure matplotlib can write its cache in restricted environments before import.
+# Use a repo-local cache to avoid home-directory permission issues in sandboxes.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+os.environ.setdefault("MPLCONFIGDIR", str(REPO_ROOT / ".cache" / "matplotlib"))
+
 import joblib
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib
+matplotlib.use("Agg")  # headless-safe backend for CLI/sandbox runs
+import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 from data import add_class_label, load_diabetes_df
@@ -19,6 +28,8 @@ def load_model(path: Path):
     return joblib.load(path)
 
 def main() -> None:
+    # Ensure matplotlib cache directory exists
+    Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
     df = load_diabetes_df()
     df, _ = add_class_label(df)
 

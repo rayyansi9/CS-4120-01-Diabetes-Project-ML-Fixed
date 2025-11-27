@@ -5,4 +5,4 @@ models/
 mlruns/
 data/*.csv
 data/*.tab
-
+.cache/

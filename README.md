@@ -9,17 +9,17 @@ Predicting diabetes progression with shared, reproducible splits for regression 
    ```
 2) Train baselines (single stratified 70/15/15 split reused for both tasks)  
    ```bash
-   python src/train_baselines.py
+   python3 src/train_baselines.py
    ```  
    Outputs: `models/*.joblib`, `reports/tables/regression_results.csv`, `reports/tables/classification_results.csv`.
 3) Generate figures from the saved models (no refit)  
    ```bash
-   python src/evaluationplots.py
+   python3 src/evaluationplots.py
    ```  
    Outputs: four plots in `reports/figures/`.
 4) One-shot run  
    ```bash
-   python src/run_all.py
+   python3 src/run_all.py
    ```
 
 ## What’s in the results (latest run)
