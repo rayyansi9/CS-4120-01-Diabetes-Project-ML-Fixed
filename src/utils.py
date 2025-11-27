@@ -1,9 +1,4 @@
-"""Utility helpers for reproducible training and evaluation.
-This module centralizes split creation so regression and classification
-experiments share identical train/val/test partitions. We also provide
-lightweight helpers for directory creation and metric calculations to
-keep the training and evaluation scripts compact and consistent.
-"""
+"""Helper functions for reusable splits, dirs, and metrics."""
 
 from __future__ import annotations
 from pathlib import Path
@@ -38,12 +33,12 @@ def get_split_indices(
     idx = df.index.to_numpy()
     labels = df[label_col].to_numpy()
 
-    # First split off the test set
+    # Split out the test set first
     idx_trainval, idx_test, y_trainval, y_test = train_test_split(
         idx, labels, test_size=test_size, random_state=random_state, stratify=labels
     )
 
-    # Then split train vs val from remaining
+    # Split the remaining data into train and val
     val_relative = val_size / (1.0 - test_size)
     idx_train, idx_val, _, _ = train_test_split(
         idx_trainval,

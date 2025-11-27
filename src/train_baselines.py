@@ -1,10 +1,6 @@
-# Training baseline regression and classification models once.
-
-#This script creates a single, stratified train/val/test split that is
-#shared across regression and classification tasks. Models are trained
-#exactly once, saved to ``models/``, and evaluation metrics are written to
-#CSV tables under ``reports/tables``.
-##
+# Train the classical regression and classification baselines once.
+# One stratified train/val/test split is shared by both tasks, models land in ``models/``,
+# and metrics go to CSVs under ``reports/tables``.
 
 from __future__ import annotations
 
@@ -36,7 +32,7 @@ def main() -> None:
     df = load_diabetes_df()
     df, median_y = add_class_label(df)
 
-    # Use local file-based MLflow tracking inside the repo
+    # Use the local mlruns folder for tracking
     mlflow.set_tracking_uri(f"file:{MLRUNS_DIR.resolve()}")
     mlflow.set_experiment(EXPERIMENT_NAME)
 
@@ -47,10 +43,10 @@ def main() -> None:
     y_clf = df["label"]
     y_reg = df["target"]
 
-    # Persist split indices for reuse across scripts
+    # Save the split so every script uses the same fold
     np.savez(SPLITS_PATH, train=splits["train"], val=splits["val"], test=splits["test"])
 
-    # Indices
+    # Grab the split slices
     X_train = X.loc[splits["train"]]
     X_val = X.loc[splits["val"]]
     X_test = X.loc[splits["test"]]
@@ -65,7 +61,7 @@ def main() -> None:
 
     ensure_dirs([MODELS_DIR, TABLES_DIR, BEST_RUN_PATH.parent, MLRUNS_DIR, SPLITS_PATH.parent])
 
-    # Models
+    # Baseline models to try
     regressors = {
         "linear_regression": LinearRegression(),
         "decision_tree_regressor": DecisionTreeRegressor(max_depth=4, random_state=42),
@@ -76,7 +72,7 @@ def main() -> None:
         "decision_tree_classifier": DecisionTreeClassifier(max_depth=4, random_state=42),
     }
 
-    # Train regressors and record metrics
+    # Train regressors and log metrics
     reg_rows = []
     best_reg = None
     for name, model in regressors.items():
@@ -146,12 +142,12 @@ def main() -> None:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
 
-            # predict_proba for ROC AUC (fallback if not available)
+            # Try predict_proba first for ROC AUC
             try:
                 y_val_proba = model.predict_proba(X_val)[:, 1]
                 y_test_proba = model.predict_proba(X_test)[:, 1]
             except Exception:
-                # fallback to decision function or binary predictions
+                # Fall back to decision_function or the raw preds
                 try:
                     y_val_proba = model.decision_function(X_val)
                     y_test_proba = model.decision_function(X_test)
@@ -177,11 +173,11 @@ def main() -> None:
 
             joblib.dump(model, MODELS_DIR / f"{name}.joblib")
 
-    # Persist tables
+    # Save results tables
     pd.DataFrame(reg_rows).to_csv(TABLES_DIR / "regression_results.csv", index=False)
     pd.DataFrame(clf_rows).to_csv(TABLES_DIR / "classification_results.csv", index=False)
 
-    # Persist manifest for evaluation to load best MLflow artifacts
+    # Save a manifest so evaluation can reload the right runs
     manifest = {
         "split": {"val_size": 0.15, "test_size": 0.15, "random_state": 42},
         "label_threshold": median_y,
@@ -214,7 +210,7 @@ def main() -> None:
     }
     BEST_RUN_PATH.write_text(json.dumps(manifest, indent=2))
 
-    # Print a short summary
+    # Quick printout
     target_std = float(y_reg.std())
     print("Saved models to models/ and metrics to reports/tables/")
     print(f"Median target used for label thresholding: {median_y:.4f}")

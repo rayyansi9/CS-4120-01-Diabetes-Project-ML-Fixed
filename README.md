@@ -14,7 +14,7 @@ Predicting diabetes progression with shared, reproducible splits for regression 
    Outputs: `models/*.joblib`, MLflow runs under `mlruns/`, `reports/tables/regression_results.csv`, `reports/tables/classification_results.csv`, `reports/best_runs.json` (best MLflow run ids).
 3) Train neural nets (classification + regression) with learning curves logged to MLflow  
    ```bash
-    python3 src/train_nn.py
+   python3 src/train_nn.py
    ```  
    Outputs: `reports/history/*.csv`, `reports/tables/nn_*_results.csv`, updates `reports/best_runs.json` with NN and overall-best runs.
 4) Generate figures and comparison tables from MLflow artifacts (no refit)  
@@ -24,7 +24,7 @@ Predicting diabetes progression with shared, reproducible splits for regression 
    Outputs: required 5 plots in `reports/figures/` and 2 comparison tables in `reports/tables/`.
 5) One-shot run (baselines + NN + evaluation)  
    ```bash
-    python3 src/run_all.py
+   python3 src/run_all.py
    ```
 6) Inspect MLflow UI (optional)  
    ```bash
@@ -32,9 +32,10 @@ Predicting diabetes progression with shared, reproducible splits for regression 
    ```
 
 ## What’s in the results (latest run)
-- Regression (val/test MAE | RMSE): Linear Regression 43.58 | 54.30 (val) and 43.36 | 54.25 (test); NN MLP 38.99 | 51.65 (val) and 45.41 | 56.49 (test). Classical linear still edges the NN on test RMSE.
-- Classification (val/test Accuracy | F1 | ROC AUC): Decision Tree 0.79 | 0.80 | 0.84 (val) and 0.70 | 0.72 | 0.78 (test); NN MLP 0.76 | 0.76 | 0.86 (val) and 0.72 | 0.72 | 0.81 (test). NN wins on ROC AUC; tree slightly higher val accuracy but overfits.
-- Required plots (reports/figures): `plot1_classification_learning_curve.png`, `plot2_regression_learning_curve.png`, `plot3_confusion_matrix.png` (best final classifier), `plot4_residuals_vs_predicted.png` (best final regressor), `plot5_feature_importance.png` (permutation importance on best classifier). Older exploratory plots remain but are not used in the final report.
+- Regression (val/test MAE | RMSE): Linear Regression 43.58 | 54.30 (val) and 43.36 | 54.25 (test); NN MLP 38.99 | 51.65 (val) and 45.41 | 56.49 (test). Linear remains the best test performer.
+- Classification (val/test Accuracy | F1 | ROC AUC): Decision Tree 0.79 | 0.80 | 0.84 (val) and 0.70 | 0.72 | 0.78 (test); tuned NN MLP 0.78 | 0.78 | 0.884 (val) and 0.78 | 0.789 | 0.844 (test). NN wins on ROC AUC and F1; tree still slightly higher val accuracy. Logistic regression test F1 is 0.778 for threshold context.
+- NN hyperparameter search: 3-config grid per task; best run IDs recorded in `reports/best_runs.json` (see `classification_nn` and `regression_nn` entries).
+- Required plots (reports/figures): `plot1_classification_learning_curve.png`, `plot2_regression_learning_curve.png`, `plot3_confusion_matrix.png` (best final classifier), `plot4_residuals_vs_predicted.png` (best final regressor), `plot5_feature_importance.png` (permutation importance on best classifier).
 - Required tables (reports/tables): `table1_classification_comparison.csv` (classical vs NN with Accuracy/F1/ROC-AUC) and `table2_regression_comparison.csv` (classical vs NN with MAE/RMSE).
 
 ## Reproducibility notes
@@ -47,5 +48,5 @@ Predicting diabetes progression with shared, reproducible splits for regression 
 - Splits: the train/val/test indices are persisted to `reports/splits.npz` when you run `python3 src/train_baselines.py` (or `python3 src/run_all.py`). This keeps evaluation perfectly aligned with training. If you want a fresh split, delete `reports/splits.npz` and rerun `python3 src/train_baselines.py` to regenerate. Avoid manual editing of this file.
 
 ## Interpretation and next steps
-- Linear regression’s lower RMSE vs the tree indicates the relationships are largely linear; adding a modest nonlinear baseline (e.g., gradient boosting or random forest) is the next check before the planned neural net.
-- Confusion matrix shows the model errs more on false positives; exploring thresholds or feature scaling/interaction terms may reduce that imbalance. EDA suggests feature correlations are moderate; engineered interactions or mild nonlinearities may help without overfitting.
+- Linear beats the tree on test RMSE, so signal looks mostly linear; try gradient boosting/random forest to capture mild curvature without overfitting.
+- Classification NN improves ROC-AUC/F1; calibrate probabilities or tune thresholds to squeeze accuracy. Class-weighting could address remaining positive-class confusion.

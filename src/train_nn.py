@@ -1,12 +1,4 @@
-"""Train neural network baselines for regression and classification.
-
-This script:
-- Reuses the same stratified train/val/test split as classical baselines.
-- Runs a small hyperparameter search over shallow MLPs with manual epoch control to log learning curves.
-- Logs metrics and artifacts to MLflow under the `mlruns/` directory.
-- Writes NN metric tables to `reports/tables/` and updates `reports/best_runs.json`
-  with best NN runs plus overall best (classical vs NN) per task.
-"""
+"""Train simple neural nets for regression and classification with MLflow logging."""
 
 from __future__ import annotations
 
@@ -75,7 +67,7 @@ def train_classifier_nn(X_train, y_train, X_val, y_val, params: Dict, random_sta
         solver="adam",
         learning_rate_init=params["lr"],
         alpha=params["alpha"],
-        max_iter=1,  # single epoch per fit
+        max_iter=1,  # one epoch per partial_fit
         warm_start=True,
         batch_size=params["batch_size"],
         random_state=random_state,
@@ -239,7 +231,7 @@ def main() -> None:
         {"hidden_layer_sizes": (64, 32), "activation": "tanh", "lr": 0.001, "alpha": 1e-4, "batch_size": 16, "epochs": 70},
     ]
 
-    # Classification NN (random/grid search over a few configs)
+    # Try a few NN classifier configs
     best_clf_row = None
     best_clf_history = None
     for idx, clf_params in enumerate(clf_search, start=1):
@@ -280,11 +272,11 @@ def main() -> None:
                 best_clf_row = clf_row
                 best_clf_history = clf_history
 
-    # Persist best classification history for plotting
+    # Save the best classifier history for plotting
     if best_clf_history is not None:
         log_history("classification_nn", best_clf_history)
 
-    # Regression NN (random/grid search over a few configs)
+    # Try a few NN regressor configs
     best_reg_row = None
     best_reg_history = None
     for idx, reg_params in enumerate(reg_search, start=1):
@@ -325,7 +317,7 @@ def main() -> None:
     if best_reg_history is not None:
         log_history("regression_nn", best_reg_history)
 
-    # Persist NN metric tables for the selected best runs
+    # Keep only the best NN runs in the metric tables
     clf_row = {
         "model": "mlp_classifier",
         "source": "nn",
@@ -347,18 +339,18 @@ def main() -> None:
         "test_rmse": best_reg_row["test_rmse"],
     }
 
-    # Persist NN metric tables
+    # Save NN metric tables
     pd.DataFrame([clf_row]).to_csv(TABLES_DIR / "nn_classification_results.csv", index=False)
     pd.DataFrame([reg_row]).to_csv(TABLES_DIR / "nn_regression_results.csv", index=False)
 
-    # Update manifest with NN runs and overall best selections
+    # Update manifest with NN runs and pick the overall winners
     manifest = load_manifest()
     best = manifest.get("best_models", {})
 
     best["classification_nn"] = {**clf_row, "artifact_path": "model"}
     best["regression_nn"] = {**reg_row, "artifact_path": "model"}
 
-    # Compute overall best (by val_roc_auc for classification, val_rmse for regression)
+    # Choose overall best: val_roc_auc for classification, val_rmse for regression
     clf_candidates = [best["classification_classical"], best["classification_nn"]]
     reg_candidates = [best["regression_classical"], best["regression_nn"]]
 

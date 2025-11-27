@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parent
-PY = sys.executable  # uses current venv/python
+PY = sys.executable  # use whatever python/venv is active
 
 def run(cmd: list):
     print("Running:", " ".join(cmd))
