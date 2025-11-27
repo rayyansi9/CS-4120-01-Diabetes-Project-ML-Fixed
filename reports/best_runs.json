@@ -9,7 +9,7 @@
     "regression_classical": {
       "model": "linear_regression",
       "source": "classical",
-      "run_id": "549d44ac75104c22874f9b4ff26afd2c",
+      "run_id": "1c22179db0bb4fea9568c78dd2092a56",
       "metric": "val_rmse",
       "val_mae": 43.58078376982053,
       "val_rmse": 54.2960309737221,
@@ -20,7 +20,7 @@
     "classification_classical": {
       "model": "decision_tree_classifier",
       "source": "classical",
-      "run_id": "36d7e47b5b4b4281987a609f4099c040",
+      "run_id": "8445c3d7a8d04add91080753bc61d002",
       "metric": "val_roc_auc",
       "val_accuracy": 0.7910447761194029,
       "val_f1": 0.8,
@@ -33,7 +33,7 @@
     "classification_nn": {
       "model": "mlp_classifier",
       "source": "nn",
-      "run_id": "3c39af41de2641478830d558900664b6",
+      "run_id": "8771a362317c4c52ad3c13d41ceaa9bc",
       "val_accuracy": 0.7611940298507462,
       "val_f1": 0.7575757575757576,
       "val_roc_auc": 0.8645276292335116,
@@ -45,7 +45,7 @@
     "regression_nn": {
       "model": "mlp_regressor",
       "source": "nn",
-      "run_id": "f56285d018654260abac479fe9618feb",
+      "run_id": "1ebf3b25db02405f85220f739cc38275",
       "val_mae": 38.9887196830542,
       "val_rmse": 51.64568464178485,
       "test_mae": 45.41241558397882,
@@ -55,7 +55,7 @@
     "classification_best": {
       "model": "mlp_classifier",
       "source": "nn",
-      "run_id": "3c39af41de2641478830d558900664b6",
+      "run_id": "8771a362317c4c52ad3c13d41ceaa9bc",
       "val_accuracy": 0.7611940298507462,
       "val_f1": 0.7575757575757576,
       "val_roc_auc": 0.8645276292335116,
@@ -67,7 +67,7 @@
     "regression_best": {
       "model": "mlp_regressor",
       "source": "nn",
-      "run_id": "f56285d018654260abac479fe9618feb",
+      "run_id": "1ebf3b25db02405f85220f739cc38275",
       "val_mae": 38.9887196830542,
       "val_rmse": 51.64568464178485,
       "test_mae": 45.41241558397882,
