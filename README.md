@@ -19,12 +19,12 @@ Predicting diabetes progression with shared, reproducible splits for regression 
    Outputs: `reports/history/*.csv`, `reports/tables/nn_*_results.csv`, updates `reports/best_runs.json` with NN and overall-best runs.
 4) Generate figures and comparison tables from MLflow artifacts (no refit)  
    ```bash
-   python3 src/evaluationplots.py
+   python3 src/evaluate.py
    ```  
    Outputs: required 5 plots in `reports/figures/` and 2 comparison tables in `reports/tables/`.
 5) One-shot run (baselines + NN + evaluation)  
    ```bash
-   python3 src/run_all.py
+    python3 src/run_all.py
    ```
 6) Inspect MLflow UI (optional)  
    ```bash
@@ -40,6 +40,11 @@ Predicting diabetes progression with shared, reproducible splits for regression 
 ## Reproducibility notes
 - Splits are created once per run via `src/utils.get_split_indices` with `random_state=42` and stratification on the classification label; no external data files are needed.
 - Saved artifacts live under `mlruns/` (MLflow), plus `reports/best_runs.json` capturing the chosen run IDs. `src/evaluationplots.py` loads models from those MLflow artifacts, so tables and plots come from the exact models that were trained.
+
+## MLflow usage and splits policy
+- Tracking: all runs are logged locally to `mlruns/` with tracking URI set to `file:mlruns`. Launch the UI with `mlflow ui --backend-store-uri file:mlruns`.
+- Artifacts: best run IDs for classical and NN models are recorded in `reports/best_runs.json`; plots and comparison tables are generated from these artifacts—no refitting in evaluation.
+- Splits: the train/val/test indices are persisted to `reports/splits.npz` when you run `python3 src/train_baselines.py` (or `python3 src/run_all.py`). This keeps evaluation perfectly aligned with training. If you want a fresh split, delete `reports/splits.npz` and rerun `python3 src/train_baselines.py` to regenerate. Avoid manual editing of this file.
 
 ## Interpretation and next steps
 - Linear regression’s lower RMSE vs the tree indicates the relationships are largely linear; adding a modest nonlinear baseline (e.g., gradient boosting or random forest) is the next check before the planned neural net.
