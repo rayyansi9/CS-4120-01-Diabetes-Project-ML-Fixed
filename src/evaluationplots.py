@@ -1,101 +1,216 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
 # Ensure matplotlib can write its cache in restricted environments before import.
-# Use a repo-local cache to avoid home-directory permission issues in sandboxes.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 os.environ.setdefault("MPLCONFIGDIR", str(REPO_ROOT / ".cache" / "matplotlib"))
 
-import joblib
-import seaborn as sns
 import matplotlib
+
 matplotlib.use("Agg")  # headless-safe backend for CLI/sandbox runs
 import matplotlib.pyplot as plt
+import mlflow
+import mlflow.sklearn
+import pandas as pd
+import seaborn as sns
+from sklearn.inspection import permutation_importance
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 from data import add_class_label, load_diabetes_df
 from utils import ensure_dirs, get_split_indices
 
 FIGURES_DIR = Path("reports/figures")
+TABLES_DIR = Path("reports/tables")
+HISTORY_DIR = Path("reports/history")
+BEST_RUN_PATH = Path("reports/best_runs.json")
+MLRUNS_DIR = Path("mlruns")
 
-def load_model(path: Path):
+
+def load_manifest(path: Path = BEST_RUN_PATH):
     if not path.exists():
         raise FileNotFoundError(
-            f"Missing model at {path}. Run `python src/train_baselines.py` first."
+            f"Missing {path}. Run `python3 src/train_baselines.py` and `python3 src/train_nn.py` first."
         )
-    return joblib.load(path)
+    return json.loads(path.read_text())
 
-def main() -> None:
-    # Ensure matplotlib cache directory exists
-    Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
-    df = load_diabetes_df()
-    df, _ = add_class_label(df)
 
-    splits = get_split_indices(df)
+def load_history(name: str) -> pd.DataFrame:
+    path = HISTORY_DIR / f"{name}_history.csv"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Missing history file at {path}. Ensure `python3 src/train_nn.py` has run."
+        )
+    return pd.read_csv(path)
 
-    # Features and targets
-    feature_cols = [col for col in df.columns if col not in {"target", "label"}]
-    X = df[feature_cols]
-    y_clf = df["label"]
-    y_reg = df["target"]
 
-    # Test partition only (evaluation)
-    X_test = X.loc[splits["test"]]
-    y_test_clf = y_clf.loc[splits["test"]]
-    y_test_reg = y_reg.loc[splits["test"]]
-
-    ensure_dirs([FIGURES_DIR])
-
-    # Target distribution bar plot
+def plot_learning_curve_classification(df_hist: pd.DataFrame):
     plt.figure()
-    df["label"].value_counts().sort_index().plot(
-        kind="bar", color=["#d9d9d9", "#595959"]
-    )
-    plt.title("Target Distribution (High vs Low Progression)")
-    plt.xlabel("Label (0 = Low, 1 = High)")
-    plt.ylabel("Count")
+    plt.plot(df_hist["epoch"], df_hist["train_roc_auc"], label="Train ROC AUC", color="#4d4d4d")
+    plt.plot(df_hist["epoch"], df_hist["val_roc_auc"], label="Val ROC AUC", color="#999999")
+    plt.xlabel("Epoch")
+    plt.ylabel("ROC AUC")
+    plt.title("Classification NN Learning Curve")
+    plt.legend()
     plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "target_distribution.png")
+    plt.savefig(FIGURES_DIR / "plot1_classification_learning_curve.png")
     plt.close()
 
-    # Correlation heatmap
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(df.corr(numeric_only=True), cmap="Greys", annot=False)
-    plt.title("Feature Correlation Heatmap")
+
+def plot_learning_curve_regression(df_hist: pd.DataFrame):
+    plt.figure()
+    plt.plot(df_hist["epoch"], df_hist["train_rmse"], label="Train RMSE", color="#4d4d4d")
+    plt.plot(df_hist["epoch"], df_hist["val_rmse"], label="Val RMSE", color="#999999")
+    plt.xlabel("Epoch")
+    plt.ylabel("RMSE")
+    plt.title("Regression NN Learning Curve")
+    plt.legend()
     plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "correlation_heatmap.png")
+    plt.savefig(FIGURES_DIR / "plot2_regression_learning_curve.png")
     plt.close()
 
-    # Confusion matrix from saved logistic regression
-    log_reg = load_model(Path("models/logistic_regression.joblib"))
-    y_pred_clf = log_reg.predict(X_test)
-    cm = confusion_matrix(y_test_clf, y_pred_clf)
 
+def plot_confusion_matrix(model, X_test, y_test, title: str):
+    y_pred = model.predict(X_test)
+    cm = confusion_matrix(y_test, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp.plot(cmap="Greys")
-    plt.title("Confusion Matrix (Logistic Regression, Test Split)")
+    plt.title(title)
     plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "confusion_matrix.png")
+    plt.savefig(FIGURES_DIR / "plot3_confusion_matrix.png")
     plt.close()
 
-    # Residuals vs predicted for saved linear regression
-    lin_reg = load_model(Path("models/linear_regression.joblib"))
-    y_pred_reg = lin_reg.predict(X_test)
-    residuals = y_test_reg - y_pred_reg
 
+def plot_residuals(model, X_test, y_test, title: str):
+    y_pred = model.predict(X_test)
+    residuals = y_test - y_pred
     plt.figure()
-    sns.scatterplot(x=y_pred_reg, y=residuals, color="#595959", alpha=0.7)
+    sns.scatterplot(x=y_pred, y=residuals, color="#595959", alpha=0.7)
     plt.axhline(0, color="#d9d9d9", linestyle="--")
-    plt.title("Residuals vs Predicted (Linear Regression, Test Split)")
+    plt.title(title)
     plt.xlabel("Predicted Progression")
     plt.ylabel("Residual (y_true - y_pred)")
     plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "residuals_vs_predicted.png")
+    plt.savefig(FIGURES_DIR / "plot4_residuals_vs_predicted.png")
     plt.close()
 
-    print(f"Saved figures to {FIGURES_DIR.resolve()}")
+
+def plot_feature_importance(model, X_test, y_test, title: str, feature_names):
+    result = permutation_importance(
+        model, X_test, y_test, scoring="roc_auc", n_repeats=20, random_state=42
+    )
+    idx = result.importances_mean.argsort()[::-1]
+    top_features = [feature_names[i] for i in idx]
+    top_scores = result.importances_mean[idx]
+
+    plt.figure(figsize=(8, 6))
+    sns.barplot(x=top_scores, y=top_features, color="#888888")
+    plt.title(title)
+    plt.xlabel("Permutation Importance (Δ ROC AUC)")
+    plt.ylabel("Feature")
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / "plot5_feature_importance.png")
+    plt.close()
+
+
+def main() -> None:
+    Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
+
+    mlflow.set_tracking_uri(f"file:{(REPO_ROOT / 'mlruns').resolve()}")
+    manifest = load_manifest()
+    best = manifest["best_models"]
+
+    # Data
+    df = load_diabetes_df()
+    df, _ = add_class_label(df)
+    splits = get_split_indices(df)
+    feature_cols = [c for c in df.columns if c not in {"target", "label"}]
+    X = df[feature_cols]
+    y_clf = df["label"]
+    y_reg = df["target"]
+    X_test_df = X.loc[splits["test"]]
+    y_test_clf = y_clf.loc[splits["test"]]
+    y_test_reg = y_reg.loc[splits["test"]]
+    X_test = X_test_df.values
+
+    ensure_dirs([FIGURES_DIR, TABLES_DIR])
+
+    # Learning curves (NN histories)
+    plot_learning_curve_classification(load_history("classification_nn"))
+    plot_learning_curve_regression(load_history("regression_nn"))
+
+    # Load best models for evaluation
+    clf_best = best["classification_best"]
+    reg_best = best["regression_best"]
+    clf_model = mlflow.sklearn.load_model(f"runs:/{clf_best['run_id']}/{clf_best['artifact_path']}")
+    reg_model = mlflow.sklearn.load_model(f"runs:/{reg_best['run_id']}/{reg_best['artifact_path']}")
+
+    # Confusion matrix and residuals plots
+    plot_confusion_matrix(clf_model, X_test, y_test_clf, f"Confusion Matrix ({clf_best['model']}, Test)")
+    plot_residuals(reg_model, X_test, y_test_reg, f"Residuals vs Predicted ({reg_best['model']}, Test)")
+
+    # Feature importance / ablation (permutation importance on best classifier)
+    plot_feature_importance(
+        clf_model,
+        X_test,
+        y_test_clf,
+        "Permutation Importance (Best Classification Model)",
+        feature_cols,
+    )
+
+    # Tables: classical vs NN comparisons
+    clf_table = pd.DataFrame(
+        [
+            {
+                "model": best["classification_classical"]["model"],
+                "source": "classical",
+                "val_accuracy": best["classification_classical"]["val_accuracy"],
+                "val_f1": best["classification_classical"]["val_f1"],
+                "val_roc_auc": best["classification_classical"]["val_roc_auc"],
+                "test_accuracy": best["classification_classical"]["test_accuracy"],
+                "test_f1": best["classification_classical"]["test_f1"],
+                "test_roc_auc": best["classification_classical"]["test_roc_auc"],
+            },
+            {
+                "model": best["classification_nn"]["model"],
+                "source": "nn",
+                "val_accuracy": best["classification_nn"]["val_accuracy"],
+                "val_f1": best["classification_nn"]["val_f1"],
+                "val_roc_auc": best["classification_nn"]["val_roc_auc"],
+                "test_accuracy": best["classification_nn"]["test_accuracy"],
+                "test_f1": best["classification_nn"]["test_f1"],
+                "test_roc_auc": best["classification_nn"]["test_roc_auc"],
+            },
+        ]
+    )
+    clf_table.to_csv(TABLES_DIR / "table1_classification_comparison.csv", index=False)
+
+    reg_table = pd.DataFrame(
+        [
+            {
+                "model": best["regression_classical"]["model"],
+                "source": "classical",
+                "val_mae": best["regression_classical"]["val_mae"],
+                "val_rmse": best["regression_classical"]["val_rmse"],
+                "test_mae": best["regression_classical"]["test_mae"],
+                "test_rmse": best["regression_classical"]["test_rmse"],
+            },
+            {
+                "model": best["regression_nn"]["model"],
+                "source": "nn",
+                "val_mae": best["regression_nn"]["val_mae"],
+                "val_rmse": best["regression_nn"]["val_rmse"],
+                "test_mae": best["regression_nn"]["test_mae"],
+                "test_rmse": best["regression_nn"]["test_rmse"],
+            },
+        ]
+    )
+    reg_table.to_csv(TABLES_DIR / "table2_regression_comparison.csv", index=False)
+
+    print(f"Saved plots to {FIGURES_DIR.resolve()} and tables to {TABLES_DIR.resolve()}")
+
 
 if __name__ == "__main__":
     main()

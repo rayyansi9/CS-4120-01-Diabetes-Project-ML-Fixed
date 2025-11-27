@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import joblib
 import pandas as pd
@@ -17,16 +18,26 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
+import mlflow
+import mlflow.sklearn
+
 from data import add_class_label, load_diabetes_df
 from utils import ensure_dirs, get_split_indices, regression_metrics
 
 MODELS_DIR = Path("models")
 TABLES_DIR = Path("reports/tables")
+BEST_RUN_PATH = Path("reports/best_runs.json")
+MLRUNS_DIR = Path("mlruns")
+EXPERIMENT_NAME = "diabetes_baselines"
 
 
 def main() -> None:
     df = load_diabetes_df()
     df, median_y = add_class_label(df)
+
+    # Use local file-based MLflow tracking inside the repo
+    mlflow.set_tracking_uri(f"file:{MLRUNS_DIR.resolve()}")
+    mlflow.set_experiment(EXPERIMENT_NAME)
 
     splits = get_split_indices(df)
 
@@ -48,7 +59,7 @@ def main() -> None:
     y_val_reg = y_reg.loc[splits["val"]]
     y_test_reg = y_reg.loc[splits["test"]]
 
-    ensure_dirs([MODELS_DIR, TABLES_DIR])
+    ensure_dirs([MODELS_DIR, TABLES_DIR, BEST_RUN_PATH.parent, MLRUNS_DIR])
 
     # Models
     regressors = {
@@ -63,48 +74,88 @@ def main() -> None:
 
     # Train regressors and record metrics
     reg_rows = []
+    best_reg = None
     for name, model in regressors.items():
-        model.fit(X_train, y_train_reg)
-        y_val_pred = model.predict(X_val)
-        y_test_pred = model.predict(X_test)
+        with mlflow.start_run(run_name=name) as run:
+            mlflow.log_param("task", "regression")
+            mlflow.log_param("model", name)
+            mlflow.log_param("random_state", 42)
+            mlflow.log_param("val_size", 0.15)
+            mlflow.log_param("test_size", 0.15)
+            if hasattr(model, "get_params"):
+                params = model.get_params()
+                if "max_depth" in params:
+                    mlflow.log_param("max_depth", params["max_depth"])
 
-        m_val = regression_metrics(y_val_reg, y_val_pred)
-        m_test = regression_metrics(y_test_reg, y_test_pred)
+            model.fit(X_train, y_train_reg)
+            y_val_pred = model.predict(X_val)
+            y_test_pred = model.predict(X_test)
 
-        reg_rows.append(
-            {
+            m_val = regression_metrics(y_val_reg, y_val_pred)
+            m_test = regression_metrics(y_test_reg, y_test_pred)
+
+            mlflow.log_metrics(
+                {
+                    "val_mae": m_val["mae"],
+                    "val_rmse": m_val["rmse"],
+                    "test_mae": m_test["mae"],
+                    "test_rmse": m_test["rmse"],
+                }
+            )
+            mlflow.sklearn.log_model(model, artifact_path="model")
+
+            row = {
                 "model": name,
+                "source": "classical",
                 "val_mae": m_val["mae"],
                 "val_rmse": m_val["rmse"],
                 "test_mae": m_test["mae"],
                 "test_rmse": m_test["rmse"],
+                "run_id": run.info.run_id,
             }
-        )
-        joblib.dump(model, MODELS_DIR / f"{name}.joblib")
+            reg_rows.append(row)
+            if best_reg is None or row["val_rmse"] < best_reg["val_rmse"]:
+                best_reg = row
+
+            joblib.dump(model, MODELS_DIR / f"{name}.joblib")
 
     # Train classifiers and record metrics
     clf_rows = []
+    best_clf = None
     for name, model in classifiers.items():
-        model.fit(X_train, y_train_clf)
-        y_val_pred = model.predict(X_val)
-        y_test_pred = model.predict(X_test)
+        with mlflow.start_run(run_name=name) as run:
+            mlflow.log_param("task", "classification")
+            mlflow.log_param("model", name)
+            mlflow.log_param("random_state", 42)
+            mlflow.log_param("val_size", 0.15)
+            mlflow.log_param("test_size", 0.15)
+            if hasattr(model, "get_params"):
+                params = model.get_params()
+                if "max_depth" in params:
+                    mlflow.log_param("max_depth", params["max_depth"])
+                if "solver" in params:
+                    mlflow.log_param("solver", params["solver"])
+                if "max_iter" in params:
+                    mlflow.log_param("max_iter", params["max_iter"])
 
-        # predict_proba for ROC AUC (fallback if not available)
-        try:
-            y_val_proba = model.predict_proba(X_val)[:, 1]
-            y_test_proba = model.predict_proba(X_test)[:, 1]
-        except Exception:
-            # fallback to decision function or binary predictions
+            model.fit(X_train, y_train_clf)
+            y_val_pred = model.predict(X_val)
+            y_test_pred = model.predict(X_test)
+
+            # predict_proba for ROC AUC (fallback if not available)
             try:
-                y_val_proba = model.decision_function(X_val)
-                y_test_proba = model.decision_function(X_test)
+                y_val_proba = model.predict_proba(X_val)[:, 1]
+                y_test_proba = model.predict_proba(X_test)[:, 1]
             except Exception:
-                y_val_proba = y_val_pred
-                y_test_proba = y_test_pred
+                # fallback to decision function or binary predictions
+                try:
+                    y_val_proba = model.decision_function(X_val)
+                    y_test_proba = model.decision_function(X_test)
+                except Exception:
+                    y_val_proba = y_val_pred
+                    y_test_proba = y_test_pred
 
-        clf_rows.append(
-            {
-                "model": name,
+            metrics = {
                 "val_accuracy": accuracy_score(y_val_clf, y_val_pred),
                 "val_f1": f1_score(y_val_clf, y_val_pred),
                 "val_roc_auc": float(roc_auc_score(y_val_clf, y_val_proba)),
@@ -112,18 +163,60 @@ def main() -> None:
                 "test_f1": f1_score(y_test_clf, y_test_pred),
                 "test_roc_auc": float(roc_auc_score(y_test_clf, y_test_proba)),
             }
-        )
-        joblib.dump(model, MODELS_DIR / f"{name}.joblib")
+            mlflow.log_metrics(metrics)
+            mlflow.sklearn.log_model(model, artifact_path="model")
+
+            row = {"model": name, "source": "classical", **metrics, "run_id": run.info.run_id}
+            clf_rows.append(row)
+            if best_clf is None or row["val_roc_auc"] > best_clf["val_roc_auc"]:
+                best_clf = row
+
+            joblib.dump(model, MODELS_DIR / f"{name}.joblib")
 
     # Persist tables
     pd.DataFrame(reg_rows).to_csv(TABLES_DIR / "regression_results.csv", index=False)
     pd.DataFrame(clf_rows).to_csv(TABLES_DIR / "classification_results.csv", index=False)
+
+    # Persist manifest for evaluation to load best MLflow artifacts
+    manifest = {
+        "split": {"val_size": 0.15, "test_size": 0.15, "random_state": 42},
+        "label_threshold": median_y,
+        "best_models": {
+            "regression_classical": {
+                "model": best_reg["model"],
+                "source": "classical",
+                "run_id": best_reg["run_id"],
+                "metric": "val_rmse",
+                "val_mae": best_reg["val_mae"],
+                "val_rmse": best_reg["val_rmse"],
+                "test_mae": best_reg["test_mae"],
+                "test_rmse": best_reg["test_rmse"],
+                "artifact_path": "model",
+            },
+            "classification_classical": {
+                "model": best_clf["model"],
+                "source": "classical",
+                "run_id": best_clf["run_id"],
+                "metric": "val_roc_auc",
+                "val_accuracy": best_clf["val_accuracy"],
+                "val_f1": best_clf["val_f1"],
+                "val_roc_auc": best_clf["val_roc_auc"],
+                "test_accuracy": best_clf["test_accuracy"],
+                "test_f1": best_clf["test_f1"],
+                "test_roc_auc": best_clf["test_roc_auc"],
+                "artifact_path": "model",
+            },
+        },
+    }
+    BEST_RUN_PATH.write_text(json.dumps(manifest, indent=2))
 
     # Print a short summary
     target_std = float(y_reg.std())
     print("Saved models to models/ and metrics to reports/tables/")
     print(f"Median target used for label thresholding: {median_y:.4f}")
     print(f"Target standard deviation: {target_std:.4f}")
+    print(f"Best regression (classical): {manifest['best_models']['regression_classical']}")
+    print(f"Best classification (classical): {manifest['best_models']['classification_classical']}")
 
 
 if __name__ == "__main__":

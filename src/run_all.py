@@ -11,5 +11,6 @@ def run(cmd: list):
 
 if __name__ == "__main__":
     run([PY, str(ROOT / "train_baselines.py")])
+    run([PY, str(ROOT / "train_nn.py")])
     run([PY, str(ROOT / "evaluationplots.py")])
     print("Done: trained models and generated figures/tables.")

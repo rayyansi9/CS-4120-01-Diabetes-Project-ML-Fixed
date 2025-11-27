@@ -1,0 +1,78 @@
+{
+  "split": {
+    "val_size": 0.15,
+    "test_size": 0.15,
+    "random_state": 42
+  },
+  "label_threshold": 140.5,
+  "best_models": {
+    "regression_classical": {
+      "model": "linear_regression",
+      "source": "classical",
+      "run_id": "4a16901b2d0847ccb7f3481dc93c0e4f",
+      "metric": "val_rmse",
+      "val_mae": 43.58078376982053,
+      "val_rmse": 54.2960309737221,
+      "test_mae": 43.35515664560688,
+      "test_rmse": 54.25135095785344,
+      "artifact_path": "model"
+    },
+    "classification_classical": {
+      "model": "decision_tree_classifier",
+      "source": "classical",
+      "run_id": "bd63457d7d1b4e71a762773406bcd7eb",
+      "metric": "val_roc_auc",
+      "val_accuracy": 0.7910447761194029,
+      "val_f1": 0.8,
+      "val_roc_auc": 0.8400178253119428,
+      "test_accuracy": 0.7014925373134329,
+      "test_f1": 0.7222222222222222,
+      "test_roc_auc": 0.7780748663101604,
+      "artifact_path": "model"
+    },
+    "classification_nn": {
+      "model": "mlp_classifier",
+      "source": "nn",
+      "run_id": "5ae9afd3100846c0ac19f1854fd9865a",
+      "val_accuracy": 0.7611940298507462,
+      "val_f1": 0.7575757575757576,
+      "val_roc_auc": 0.8645276292335116,
+      "test_accuracy": 0.7164179104477612,
+      "test_f1": 0.7246376811594203,
+      "test_roc_auc": 0.8065953654188948,
+      "artifact_path": "model"
+    },
+    "regression_nn": {
+      "model": "mlp_regressor",
+      "source": "nn",
+      "run_id": "00cfcafa232246bf83917f3db0349cf8",
+      "val_mae": 38.9887196830542,
+      "val_rmse": 51.64568464178485,
+      "test_mae": 45.41241558397882,
+      "test_rmse": 56.48969947777901,
+      "artifact_path": "model"
+    },
+    "classification_best": {
+      "model": "mlp_classifier",
+      "source": "nn",
+      "run_id": "5ae9afd3100846c0ac19f1854fd9865a",
+      "val_accuracy": 0.7611940298507462,
+      "val_f1": 0.7575757575757576,
+      "val_roc_auc": 0.8645276292335116,
+      "test_accuracy": 0.7164179104477612,
+      "test_f1": 0.7246376811594203,
+      "test_roc_auc": 0.8065953654188948,
+      "artifact_path": "model"
+    },
+    "regression_best": {
+      "model": "mlp_regressor",
+      "source": "nn",
+      "run_id": "00cfcafa232246bf83917f3db0349cf8",
+      "val_mae": 38.9887196830542,
+      "val_rmse": 51.64568464178485,
+      "test_mae": 45.41241558397882,
+      "test_rmse": 56.48969947777901,
+      "artifact_path": "model"
+    }
+  }
+}
