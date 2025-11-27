@@ -28,6 +28,7 @@ MODELS_DIR = Path("models")
 TABLES_DIR = Path("reports/tables")
 BEST_RUN_PATH = Path("reports/best_runs.json")
 MLRUNS_DIR = Path("mlruns")
+SPLITS_PATH = Path("reports/splits.npz")
 EXPERIMENT_NAME = "diabetes_baselines"
 
 
@@ -46,6 +47,9 @@ def main() -> None:
     y_clf = df["label"]
     y_reg = df["target"]
 
+    # Persist split indices for reuse across scripts
+    np.savez(SPLITS_PATH, train=splits["train"], val=splits["val"], test=splits["test"])
+
     # Indices
     X_train = X.loc[splits["train"]]
     X_val = X.loc[splits["val"]]
@@ -59,7 +63,7 @@ def main() -> None:
     y_val_reg = y_reg.loc[splits["val"]]
     y_test_reg = y_reg.loc[splits["test"]]
 
-    ensure_dirs([MODELS_DIR, TABLES_DIR, BEST_RUN_PATH.parent, MLRUNS_DIR])
+    ensure_dirs([MODELS_DIR, TABLES_DIR, BEST_RUN_PATH.parent, MLRUNS_DIR, SPLITS_PATH.parent])
 
     # Models
     regressors = {

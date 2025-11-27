@@ -36,6 +36,7 @@ TABLES_DIR = Path("reports/tables")
 HISTORY_DIR = Path("reports/history")
 BEST_RUN_PATH = Path("reports/best_runs.json")
 MLRUNS_DIR = Path("mlruns")
+SPLITS_PATH = Path("reports/splits.npz")
 EXPERIMENT_NAME = "diabetes_nn"
 
 
@@ -46,6 +47,13 @@ def load_manifest() -> Dict:
     raise FileNotFoundError(
         f"{BEST_RUN_PATH} not found. Run `python3 src/train_baselines.py` first."
     )
+
+
+def load_splits(df):
+    if SPLITS_PATH.exists():
+        data = np.load(SPLITS_PATH)
+        return {k: data[k] for k in ["train", "val", "test"]}
+    return get_split_indices(df)
 
 
 def log_history(name: str, history: List[Dict]) -> Path:
@@ -191,7 +199,7 @@ def train_regressor_nn(X_train, y_train, X_val, y_val, params: Dict, random_stat
 def main() -> None:
     df = load_diabetes_df()
     df, median_y = add_class_label(df)
-    splits = get_split_indices(df)
+    splits = load_splits(df)
 
     feature_cols = [c for c in df.columns if c not in {"target", "label"}]
     X = df[feature_cols]

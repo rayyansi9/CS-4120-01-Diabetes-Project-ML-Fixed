@@ -18,6 +18,8 @@ import pandas as pd
 import seaborn as sns
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+import joblib
+import numpy as np
 
 from data import add_class_label, load_diabetes_df
 from utils import ensure_dirs, get_split_indices
@@ -27,6 +29,7 @@ TABLES_DIR = Path("reports/tables")
 HISTORY_DIR = Path("reports/history")
 BEST_RUN_PATH = Path("reports/best_runs.json")
 MLRUNS_DIR = Path("mlruns")
+SPLITS_PATH = Path("reports/splits.npz")
 
 
 def load_manifest(path: Path = BEST_RUN_PATH):
@@ -43,7 +46,28 @@ def load_history(name: str) -> pd.DataFrame:
         raise FileNotFoundError(
             f"Missing history file at {path}. Ensure `python3 src/train_nn.py` has run."
         )
-    return pd.read_csv(path)
+    df = pd.read_csv(path)
+    if "epoch" not in df.columns:
+        df.insert(0, "epoch", np.arange(1, len(df) + 1))
+    return df
+
+
+def load_splits(df):
+    if SPLITS_PATH.exists():
+        data = np.load(SPLITS_PATH)
+        return {k: data[k] for k in ["train", "val", "test"]}
+    return get_split_indices(df)
+
+
+def load_model_with_fallback(run_id: str, artifact_path: str, local_name: str):
+    try:
+        return mlflow.sklearn.load_model(f"runs:/{run_id}/{artifact_path}")
+    except Exception as exc:
+        local_path = Path("models") / f"{local_name}.joblib"
+        if local_path.exists():
+            print(f"MLflow load failed ({exc}); falling back to {local_path}")
+            return joblib.load(local_path)
+        raise
 
 
 def plot_learning_curve_classification(df_hist: pd.DataFrame):
@@ -125,15 +149,14 @@ def main() -> None:
     # Data
     df = load_diabetes_df()
     df, _ = add_class_label(df)
-    splits = get_split_indices(df)
+    splits = load_splits(df)
     feature_cols = [c for c in df.columns if c not in {"target", "label"}]
     X = df[feature_cols]
     y_clf = df["label"]
     y_reg = df["target"]
-    X_test_df = X.loc[splits["test"]]
+    X_test = X.loc[splits["test"]]
     y_test_clf = y_clf.loc[splits["test"]]
     y_test_reg = y_reg.loc[splits["test"]]
-    X_test = X_test_df.values
 
     ensure_dirs([FIGURES_DIR, TABLES_DIR])
 
@@ -144,8 +167,8 @@ def main() -> None:
     # Load best models for evaluation
     clf_best = best["classification_best"]
     reg_best = best["regression_best"]
-    clf_model = mlflow.sklearn.load_model(f"runs:/{clf_best['run_id']}/{clf_best['artifact_path']}")
-    reg_model = mlflow.sklearn.load_model(f"runs:/{reg_best['run_id']}/{reg_best['artifact_path']}")
+    clf_model = load_model_with_fallback(clf_best["run_id"], clf_best["artifact_path"], clf_best["model"])
+    reg_model = load_model_with_fallback(reg_best["run_id"], reg_best["artifact_path"], reg_best["model"])
 
     # Confusion matrix and residuals plots
     plot_confusion_matrix(clf_model, X_test, y_test_clf, f"Confusion Matrix ({clf_best['model']}, Test)")
