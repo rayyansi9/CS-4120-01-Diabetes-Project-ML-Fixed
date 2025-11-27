@@ -9,15 +9,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-
 import joblib
 import pandas as pd
+import numpy as np
+
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from data import add_class_label, load_diabetes_df
 from utils import ensure_dirs, get_split_indices, regression_metrics
+
+MODELS_DIR = Path("models")
+TABLES_DIR = Path("reports/tables")
 
 
 def main() -> None:
@@ -25,80 +29,101 @@ def main() -> None:
     df, median_y = add_class_label(df)
 
     splits = get_split_indices(df)
-    feature_cols = [col for col in df.columns if col not in {"target", "label"}]
 
+    feature_cols = [c for c in df.columns if c not in {"target", "label"}]
     X = df[feature_cols]
-    y_reg = df["target"]
     y_clf = df["label"]
+    y_reg = df["target"]
 
-    def subset(indices):
-        return X.loc[indices], y_reg.loc[indices], y_clf.loc[indices]
+    # Indices
+    X_train = X.loc[splits["train"]]
+    X_val = X.loc[splits["val"]]
+    X_test = X.loc[splits["test"]]
 
-    X_train, y_train_reg, y_train_clf = subset(splits["train"])
-    X_val, y_val_reg, y_val_clf = subset(splits["val"])
-    X_test, y_test_reg, y_test_clf = subset(splits["test"])
+    y_train_clf = y_clf.loc[splits["train"]]
+    y_val_clf = y_clf.loc[splits["val"]]
+    y_test_clf = y_clf.loc[splits["test"]]
 
-    ensure_dirs(["models", "reports/tables", "data"])
+    y_train_reg = y_reg.loc[splits["train"]]
+    y_val_reg = y_reg.loc[splits["val"]]
+    y_test_reg = y_reg.loc[splits["test"]]
 
-    regression_results = []
-    regression_models = {
+    ensure_dirs([MODELS_DIR, TABLES_DIR])
+
+    # Models
+    regressors = {
         "linear_regression": LinearRegression(),
-        "decision_tree_regressor": DecisionTreeRegressor(random_state=42, max_depth=4),
+        "decision_tree_regressor": DecisionTreeRegressor(max_depth=4, random_state=42),
     }
 
-    for name, model in regression_models.items():
+    classifiers = {
+        "logistic_regression": LogisticRegression(max_iter=1000, solver="lbfgs"),
+        "decision_tree_classifier": DecisionTreeClassifier(max_depth=4, random_state=42),
+    }
+
+    # Train regressors and record metrics
+    reg_rows = []
+    for name, model in regressors.items():
         model.fit(X_train, y_train_reg)
-        val_pred = model.predict(X_val)
-        test_pred = model.predict(X_test)
+        y_val_pred = model.predict(X_val)
+        y_test_pred = model.predict(X_test)
 
-        val_metrics = regression_metrics(y_val_reg, val_pred)
-        test_metrics = regression_metrics(y_test_reg, test_pred)
+        m_val = regression_metrics(y_val_reg, y_val_pred)
+        m_test = regression_metrics(y_test_reg, y_test_pred)
 
-        regression_results.append(
+        reg_rows.append(
             {
-                "Model": name.replace("_", " ").title(),
-                "Val MAE": val_metrics["mae"],
-                "Val MSE": val_metrics["mse"],
-                "Val RMSE": val_metrics["rmse"],
-                "Test MAE": test_metrics["mae"],
-                "Test MSE": test_metrics["mse"],
-                "Test RMSE": test_metrics["rmse"],
+                "model": name,
+                "val_mae": m_val["mae"],
+                "val_rmse": m_val["rmse"],
+                "test_mae": m_test["mae"],
+                "test_rmse": m_test["rmse"],
             }
         )
+        joblib.dump(model, MODELS_DIR / f"{name}.joblib")
 
-        joblib.dump(model, Path("models") / f"{name}.joblib")
-
-    reg_df = pd.DataFrame(regression_results)
-    reg_df.to_csv("reports/tables/regression_results.csv", index=False)
-
-    classification_results = []
-    classification_models = {
-        "logistic_regression": LogisticRegression(max_iter=2000),
-        "decision_tree_classifier": DecisionTreeClassifier(random_state=42, max_depth=4),
-    }
-
-    for name, model in classification_models.items():
+    # Train classifiers and record metrics
+    clf_rows = []
+    for name, model in classifiers.items():
         model.fit(X_train, y_train_clf)
-        val_pred = model.predict(X_val)
-        test_pred = model.predict(X_test)
+        y_val_pred = model.predict(X_val)
+        y_test_pred = model.predict(X_test)
 
-        classification_results.append(
+        # predict_proba for ROC AUC (fallback if not available)
+        try:
+            y_val_proba = model.predict_proba(X_val)[:, 1]
+            y_test_proba = model.predict_proba(X_test)[:, 1]
+        except Exception:
+            # fallback to decision function or binary predictions
+            try:
+                y_val_proba = model.decision_function(X_val)
+                y_test_proba = model.decision_function(X_test)
+            except Exception:
+                y_val_proba = y_val_pred
+                y_test_proba = y_test_pred
+
+        clf_rows.append(
             {
-                "Model": name.replace("_", " ").title(),
-                "Val Accuracy": accuracy_score(y_val_clf, val_pred),
-                "Val F1": f1_score(y_val_clf, val_pred),
-                "Test Accuracy": accuracy_score(y_test_clf, test_pred),
-                "Test F1": f1_score(y_test_clf, test_pred),
+                "model": name,
+                "val_accuracy": accuracy_score(y_val_clf, y_val_pred),
+                "val_f1": f1_score(y_val_clf, y_val_pred),
+                "val_roc_auc": float(roc_auc_score(y_val_clf, y_val_proba)),
+                "test_accuracy": accuracy_score(y_test_clf, y_test_pred),
+                "test_f1": f1_score(y_test_clf, y_test_pred),
+                "test_roc_auc": float(roc_auc_score(y_test_clf, y_test_proba)),
             }
         )
+        joblib.dump(model, MODELS_DIR / f"{name}.joblib")
 
-        joblib.dump(model, Path("models") / f"{name}.joblib")
+    # Persist tables
+    pd.DataFrame(reg_rows).to_csv(TABLES_DIR / "regression_results.csv", index=False)
+    pd.DataFrame(clf_rows).to_csv(TABLES_DIR / "classification_results.csv", index=False)
 
-    clf_df = pd.DataFrame(classification_results)
-    clf_df.to_csv("reports/tables/classification_results.csv", index=False)
-
-    print("Saved models to models/ and metrics to reports/tables/.")
+    # Print a short summary
+    target_std = float(y_reg.std())
+    print("Saved models to models/ and metrics to reports/tables/")
     print(f"Median target used for label thresholding: {median_y:.4f}")
+    print(f"Target standard deviation: {target_std:.4f}")
 
 
 if __name__ == "__main__":

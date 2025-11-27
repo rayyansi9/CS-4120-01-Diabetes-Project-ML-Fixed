@@ -1,4 +1,3 @@
-# ...existing code...
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +10,6 @@ from data import add_class_label, load_diabetes_df
 from utils import ensure_dirs, get_split_indices
 
 FIGURES_DIR = Path("reports/figures")
-# ...existing code...
 
 def load_model(path: Path):
     if not path.exists():
@@ -32,13 +30,14 @@ def main() -> None:
     y_clf = df["label"]
     y_reg = df["target"]
 
-    # Test partition only (evaluation as required)
+    # Test partition only (evaluation)
     X_test = X.loc[splits["test"]]
     y_test_clf = y_clf.loc[splits["test"]]
     y_test_reg = y_reg.loc[splits["test"]]
 
     ensure_dirs([FIGURES_DIR])
 
+    # Target distribution bar plot
     plt.figure()
     df["label"].value_counts().sort_index().plot(
         kind="bar", color=["#d9d9d9", "#595959"]
@@ -50,6 +49,7 @@ def main() -> None:
     plt.savefig(FIGURES_DIR / "target_distribution.png")
     plt.close()
 
+    # Correlation heatmap
     plt.figure(figsize=(8, 6))
     sns.heatmap(df.corr(numeric_only=True), cmap="Greys", annot=False)
     plt.title("Feature Correlation Heatmap")
@@ -57,6 +57,7 @@ def main() -> None:
     plt.savefig(FIGURES_DIR / "correlation_heatmap.png")
     plt.close()
 
+    # Confusion matrix from saved logistic regression
     log_reg = load_model(Path("models/logistic_regression.joblib"))
     y_pred_clf = log_reg.predict(X_test)
     cm = confusion_matrix(y_test_clf, y_pred_clf)
@@ -68,6 +69,7 @@ def main() -> None:
     plt.savefig(FIGURES_DIR / "confusion_matrix.png")
     plt.close()
 
+    # Residuals vs predicted for saved linear regression
     lin_reg = load_model(Path("models/linear_regression.joblib"))
     y_pred_reg = lin_reg.predict(X_test)
     residuals = y_test_reg - y_pred_reg
@@ -86,4 +88,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-# ...existing code...ip
