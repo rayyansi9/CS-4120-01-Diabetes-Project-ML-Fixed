@@ -2,7 +2,7 @@
 
 This script:
 - Reuses the same stratified train/val/test split as classical baselines.
-- Trains shallow MLPs with manual epoch control to log learning curves.
+- Runs a small hyperparameter search over shallow MLPs with manual epoch control to log learning curves.
 - Logs metrics and artifacts to MLflow under the `mlruns/` directory.
 - Writes NN metric tables to `reports/tables/` and updates `reports/best_runs.json`
   with best NN runs plus overall best (classical vs NN) per task.
@@ -228,88 +228,124 @@ def main() -> None:
     mlflow.set_experiment(EXPERIMENT_NAME)
 
     random_state = 42
-    clf_params = {
-        "hidden_layer_sizes": (64, 32),
-        "activation": "relu",
-        "lr": 0.001,
-        "alpha": 1e-4,
-        "batch_size": 32,
-        "epochs": 40,
-    }
-    reg_params = {
-        "hidden_layer_sizes": (64, 32),
-        "activation": "relu",
-        "lr": 0.001,
-        "alpha": 1e-4,
-        "batch_size": 32,
-        "epochs": 60,
-    }
+    clf_search = [
+        {"hidden_layer_sizes": (64, 32), "activation": "relu", "lr": 0.001, "alpha": 1e-4, "batch_size": 32, "epochs": 40},
+        {"hidden_layer_sizes": (128,), "activation": "relu", "lr": 0.0005, "alpha": 5e-4, "batch_size": 32, "epochs": 50},
+        {"hidden_layer_sizes": (64, 32), "activation": "tanh", "lr": 0.001, "alpha": 1e-4, "batch_size": 16, "epochs": 50},
+    ]
+    reg_search = [
+        {"hidden_layer_sizes": (64, 32), "activation": "relu", "lr": 0.001, "alpha": 1e-4, "batch_size": 32, "epochs": 60},
+        {"hidden_layer_sizes": (128,), "activation": "relu", "lr": 0.0005, "alpha": 5e-4, "batch_size": 32, "epochs": 80},
+        {"hidden_layer_sizes": (64, 32), "activation": "tanh", "lr": 0.001, "alpha": 1e-4, "batch_size": 16, "epochs": 70},
+    ]
 
-    # Classification NN
-    with mlflow.start_run(run_name="nn_classification") as run:
-        mlflow.log_params(
-            {
-                "task": "classification",
-                "model": "mlp",
-                **clf_params,
-                "random_state": random_state,
+    # Classification NN (random/grid search over a few configs)
+    best_clf_row = None
+    best_clf_history = None
+    for idx, clf_params in enumerate(clf_search, start=1):
+        with mlflow.start_run(run_name=f"nn_classification_{idx}") as run:
+            mlflow.log_params(
+                {
+                    "task": "classification",
+                    "model": "mlp",
+                    **clf_params,
+                    "random_state": random_state,
+                }
+            )
+            clf_pipeline, clf_history = train_classifier_nn(
+                X_train.values, y_train_clf.values, X_val.values, y_val_clf.values, clf_params, random_state
+            )
+
+            clf_hist_path = log_history(f"classification_nn_{run.info.run_id}", clf_history)
+            mlflow.log_artifact(clf_hist_path, artifact_path="history")
+            mlflow.sklearn.log_model(clf_pipeline, artifact_path="model")
+
+            y_val_pred = clf_pipeline.predict(X_val.values)
+            y_val_proba = clf_pipeline.predict_proba(X_val.values)[:, 1]
+            y_test_pred = clf_pipeline.predict(X_test.values)
+            y_test_proba = clf_pipeline.predict_proba(X_test.values)[:, 1]
+
+            clf_metrics = {
+                "val_accuracy": accuracy_score(y_val_clf, y_val_pred),
+                "val_f1": f1_score(y_val_clf, y_val_pred),
+                "val_roc_auc": roc_auc_score(y_val_clf, y_val_proba),
+                "test_accuracy": accuracy_score(y_test_clf, y_test_pred),
+                "test_f1": f1_score(y_test_clf, y_test_pred),
+                "test_roc_auc": roc_auc_score(y_test_clf, y_test_proba),
             }
-        )
-        clf_pipeline, clf_history = train_classifier_nn(
-            X_train.values, y_train_clf.values, X_val.values, y_val_clf.values, clf_params, random_state
-        )
+            mlflow.log_metrics(clf_metrics)
+            clf_row = {"model": f"mlp_classifier_{idx}", "source": "nn", "run_id": run.info.run_id, **clf_metrics, **clf_params}
 
-        clf_hist_path = log_history("classification_nn", clf_history)
-        mlflow.log_artifact(clf_hist_path, artifact_path="history")
-        mlflow.sklearn.log_model(clf_pipeline, artifact_path="model")
+            if best_clf_row is None or clf_row["val_roc_auc"] > best_clf_row["val_roc_auc"]:
+                best_clf_row = clf_row
+                best_clf_history = clf_history
 
-        # Evaluate best NN model
-        y_val_pred = clf_pipeline.predict(X_val.values)
-        y_val_proba = clf_pipeline.predict_proba(X_val.values)[:, 1]
-        y_test_pred = clf_pipeline.predict(X_test.values)
-        y_test_proba = clf_pipeline.predict_proba(X_test.values)[:, 1]
+    # Persist best classification history for plotting
+    if best_clf_history is not None:
+        log_history("classification_nn", best_clf_history)
 
-        clf_metrics = {
-            "val_accuracy": accuracy_score(y_val_clf, y_val_pred),
-            "val_f1": f1_score(y_val_clf, y_val_pred),
-            "val_roc_auc": roc_auc_score(y_val_clf, y_val_proba),
-            "test_accuracy": accuracy_score(y_test_clf, y_test_pred),
-            "test_f1": f1_score(y_test_clf, y_test_pred),
-            "test_roc_auc": roc_auc_score(y_test_clf, y_test_proba),
-        }
-        mlflow.log_metrics(clf_metrics)
-        clf_row = {"model": "mlp_classifier", "source": "nn", "run_id": run.info.run_id, **clf_metrics}
+    # Regression NN (random/grid search over a few configs)
+    best_reg_row = None
+    best_reg_history = None
+    for idx, reg_params in enumerate(reg_search, start=1):
+        with mlflow.start_run(run_name=f"nn_regression_{idx}") as run:
+            mlflow.log_params(
+                {
+                    "task": "regression",
+                    "model": "mlp",
+                    **reg_params,
+                    "random_state": random_state,
+                }
+            )
+            reg_pipeline, reg_history = train_regressor_nn(
+                X_train.values, y_train_reg.values, X_val.values, y_val_reg.values, reg_params, random_state
+            )
+            reg_hist_path = log_history(f"regression_nn_{run.info.run_id}", reg_history)
+            mlflow.log_artifact(reg_hist_path, artifact_path="history")
+            mlflow.sklearn.log_model(reg_pipeline, artifact_path="model")
 
-    # Regression NN
-    with mlflow.start_run(run_name="nn_regression") as run:
-        mlflow.log_params(
-            {
-                "task": "regression",
-                "model": "mlp",
-                **reg_params,
-                "random_state": random_state,
+            y_val_pred_reg = reg_pipeline.predict(X_val.values)
+            y_test_pred_reg = reg_pipeline.predict(X_test.values)
+
+            val_mse = mean_squared_error(y_val_reg, y_val_pred_reg)
+            test_mse = mean_squared_error(y_test_reg, y_test_pred_reg)
+            reg_metrics = {
+                "val_mae": mean_absolute_error(y_val_reg, y_val_pred_reg),
+                "val_rmse": float(np.sqrt(val_mse)),
+                "test_mae": mean_absolute_error(y_test_reg, y_test_pred_reg),
+                "test_rmse": float(np.sqrt(test_mse)),
             }
-        )
-        reg_pipeline, reg_history = train_regressor_nn(
-            X_train.values, y_train_reg.values, X_val.values, y_val_reg.values, reg_params, random_state
-        )
-        reg_hist_path = log_history("regression_nn", reg_history)
-        mlflow.log_artifact(reg_hist_path, artifact_path="history")
-        mlflow.sklearn.log_model(reg_pipeline, artifact_path="model")
+            mlflow.log_metrics(reg_metrics)
+            reg_row = {"model": f"mlp_regressor_{idx}", "source": "nn", "run_id": run.info.run_id, **reg_metrics, **reg_params}
 
-        y_val_pred_reg = reg_pipeline.predict(X_val.values)
-        y_test_pred_reg = reg_pipeline.predict(X_test.values)
+            if best_reg_row is None or reg_row["val_rmse"] < best_reg_row["val_rmse"]:
+                best_reg_row = reg_row
+                best_reg_history = reg_history
 
-        val_mse = mean_squared_error(y_val_reg, y_val_pred_reg)
-        test_mse = mean_squared_error(y_test_reg, y_test_pred_reg)
-        reg_metrics = {
-            "val_mae": mean_absolute_error(y_val_reg, y_val_pred_reg),
-            "val_rmse": float(np.sqrt(val_mse)),
-            "test_mae": mean_absolute_error(y_test_reg, y_test_pred_reg),
-            "test_rmse": float(np.sqrt(test_mse)),
-        }
-        mlflow.log_metrics(reg_metrics)
-        reg_row = {"model": "mlp_regressor", "source": "nn", "run_id": run.info.run_id, **reg_metrics}
+    if best_reg_history is not None:
+        log_history("regression_nn", best_reg_history)
+
+    # Persist NN metric tables for the selected best runs
+    clf_row = {
+        "model": "mlp_classifier",
+        "source": "nn",
+        "run_id": best_clf_row["run_id"],
+        "val_accuracy": best_clf_row["val_accuracy"],
+        "val_f1": best_clf_row["val_f1"],
+        "val_roc_auc": best_clf_row["val_roc_auc"],
+        "test_accuracy": best_clf_row["test_accuracy"],
+        "test_f1": best_clf_row["test_f1"],
+        "test_roc_auc": best_clf_row["test_roc_auc"],
+    }
+    reg_row = {
+        "model": "mlp_regressor",
+        "source": "nn",
+        "run_id": best_reg_row["run_id"],
+        "val_mae": best_reg_row["val_mae"],
+        "val_rmse": best_reg_row["val_rmse"],
+        "test_mae": best_reg_row["test_mae"],
+        "test_rmse": best_reg_row["test_rmse"],
+    }
 
     # Persist NN metric tables
     pd.DataFrame([clf_row]).to_csv(TABLES_DIR / "nn_classification_results.csv", index=False)
