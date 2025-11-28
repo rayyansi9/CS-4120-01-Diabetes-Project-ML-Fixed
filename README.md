@@ -2,34 +2,13 @@
 
 Predicting diabetes progression with shared, reproducible splits for regression and classification baselines. We build a median-based label for classification, train the baselines once, save the fitted pipelines, and generate plots from those saved models.
 
-## How to run
-1) Install deps  
-   ```bash
-   pip install -r requirements.txt
-   ```
-2) Train classical baselines (single stratified 70/15/15 split reused for both tasks)  
-   ```bash
-   python3 src/train_baselines.py
-   ```  
-   Outputs: `models/*.joblib`, MLflow runs under `mlruns/`, `reports/tables/regression_results.csv`, `reports/tables/classification_results.csv`, `reports/best_runs.json` (best MLflow run ids).
-3) Train neural nets (classification + regression) with learning curves logged to MLflow  
-   ```bash
-   python3 src/train_nn.py
-   ```  
-   Outputs: `reports/history/*.csv`, `reports/tables/nn_*_results.csv`, updates `reports/best_runs.json` with NN and overall-best runs.
-4) Generate figures and comparison tables from MLflow artifacts (no refit)  
-   ```bash
-   python3 src/evaluate.py
-   ```  
-   Outputs: required 5 plots in `reports/figures/` and 2 comparison tables in `reports/tables/`.
-5) One-shot run (baselines + NN + evaluation)  
-   ```bash
-   python3 src/run_all.py
-   ```
-6) Inspect MLflow UI (optional)  
-   ```bash
-   mlflow ui --backend-store-uri file:mlruns
-   ```
+## Quick start
+- Install deps: `pip install -r requirements.txt`
+- Train classical baselines (reused split for both tasks): `python src/train_baselines.py`
+- Train neural nets (classification + regression): `python src/train_nn.py`
+- Generate plots + comparison tables from saved artifacts: `python src/evaluate.py`
+- Do everything in one go: `python src/run_all.py`
+- Optional MLflow UI: `mlflow ui --backend-store-uri file:mlruns`
 
 ## What’s in the results (latest run)
 - Regression (val/test MAE | RMSE): Linear Regression 43.58 | 54.30 (val) and 43.36 | 54.25 (test); NN MLP 38.99 | 51.65 (val) and 45.41 | 56.49 (test). Linear remains the best test performer.
