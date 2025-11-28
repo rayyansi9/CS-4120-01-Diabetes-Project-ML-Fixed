@@ -40,7 +40,7 @@ Predicting diabetes progression with shared, reproducible splits for regression 
 
 ## Reproducibility notes
 - Splits are created once per run via `src/utils.get_split_indices` with `random_state=42` and stratification on the classification label; no external data files are needed.
-- Saved artifacts live under `mlruns/` (MLflow), plus `reports/best_runs.json` capturing the chosen run IDs. `src/evaluationplots.py` loads models from those MLflow artifacts, so tables and plots come from the exact models that were trained.
+- Saved artifacts live under `mlruns/` (MLflow), plus `reports/best_runs.json` capturing the chosen run IDs. `src/evaluate.py` loads models from those MLflow artifacts, so tables and plots come from the exact models that were trained.
 
 ## MLflow usage and splits policy
 - Tracking: all runs are logged locally to `mlruns/` with tracking URI set to `file:mlruns`. Launch the UI with `mlflow ui --backend-store-uri file:mlruns`.
