@@ -4,13 +4,12 @@ import json
 import os
 from pathlib import Path
 
-# Ensure matplotlib can write its cache in restricted environments before import.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 os.environ.setdefault("MPLCONFIGDIR", str(REPO_ROOT / ".cache" / "matplotlib"))
 
 import matplotlib
 
-matplotlib.use("Agg")  # headless-safe backend for CLI/sandbox runs
+matplotlib.use("Agg")  
 import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
@@ -146,7 +145,6 @@ def main() -> None:
     manifest = load_manifest()
     best = manifest["best_models"]
 
-    # Data
     df = load_diabetes_df()
     df, _ = add_class_label(df)
     splits = load_splits(df)
