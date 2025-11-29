@@ -1,6 +1,6 @@
 # Train the classical regression and classification baselines once.
-# One stratified train/val/test split is shared by both tasks, models land in ``models/``,
-# and metrics go to CSVs under ``reports/tables``.
+# One stratified train/val/test split is shared by both tasks, models go in models/,
+# and metrics go to CSVs in reports/tables.
 
 from __future__ import annotations
 
@@ -142,12 +142,12 @@ def main() -> None:
             y_val_pred = model.predict(X_val)
             y_test_pred = model.predict(X_test)
 
-            # Try predict_proba first for ROC AUC
+        
             try:
                 y_val_proba = model.predict_proba(X_val)[:, 1]
                 y_test_proba = model.predict_proba(X_test)[:, 1]
             except Exception:
-                # Fall back to decision_function or the raw preds
+            
                 try:
                     y_val_proba = model.decision_function(X_val)
                     y_test_proba = model.decision_function(X_test)
@@ -177,7 +177,7 @@ def main() -> None:
     pd.DataFrame(reg_rows).to_csv(TABLES_DIR / "regression_results.csv", index=False)
     pd.DataFrame(clf_rows).to_csv(TABLES_DIR / "classification_results.csv", index=False)
 
-    # Save a manifest so evaluation can reload the right runs
+
     manifest = {
         "split": {"val_size": 0.15, "test_size": 0.15, "random_state": 42},
         "label_threshold": median_y,
