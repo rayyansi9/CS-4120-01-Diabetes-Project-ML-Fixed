@@ -1,5 +1,3 @@
-"""Train simple neural nets for regression and classification with MLflow logging."""
-
 from __future__ import annotations
 
 import json
@@ -67,7 +65,7 @@ def train_classifier_nn(X_train, y_train, X_val, y_val, params: Dict, random_sta
         solver="adam",
         learning_rate_init=params["lr"],
         alpha=params["alpha"],
-        max_iter=1,  # one epoch per partial_fit
+        max_iter=1,  
         warm_start=True,
         batch_size=params["batch_size"],
         random_state=random_state,
@@ -231,7 +229,7 @@ def main() -> None:
         {"hidden_layer_sizes": (64, 32), "activation": "tanh", "lr": 0.001, "alpha": 1e-4, "batch_size": 16, "epochs": 70},
     ]
 
-    # Try a few NN classifier configs
+    # Try a few Neural network classifier configs
     best_clf_row = None
     best_clf_history = None
     for idx, clf_params in enumerate(clf_search, start=1):
@@ -339,7 +337,7 @@ def main() -> None:
         "test_rmse": best_reg_row["test_rmse"],
     }
 
-    # Save NN metric tables
+
     pd.DataFrame([clf_row]).to_csv(TABLES_DIR / "nn_classification_results.csv", index=False)
     pd.DataFrame([reg_row]).to_csv(TABLES_DIR / "nn_regression_results.csv", index=False)
 
