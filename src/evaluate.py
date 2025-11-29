@@ -36,6 +36,17 @@ HISTORY_DIR = Path("reports/history")
 BEST_RUN_PATH = Path("reports/best_runs.json")
 MLRUNS_DIR = Path("mlruns")
 SPLITS_PATH = Path("reports/splits.npz")
+PLOT_STYLE = {
+    "font.family": "serif",
+    "font.serif": ["DejaVu Serif", "Times New Roman", "Georgia"],
+    "axes.titlesize": 16,
+    "axes.labelsize": 13,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+}
+COLOR_PRIMARY = "#2f5c9e"
+COLOR_SECONDARY = "#8fb3d0"
+COLOR_ACCENT = "#c95f4a"
 
 
 def load_manifest(path: Path = BEST_RUN_PATH):
@@ -77,54 +88,58 @@ def load_model_with_fallback(run_id: str, artifact_path: str, local_name: str):
 
 
 def plot_learning_curve_classification(df_hist: pd.DataFrame):
-    plt.figure()
-    plt.plot(df_hist["epoch"], df_hist["train_roc_auc"], label="Train ROC AUC", color="#4d4d4d")
-    plt.plot(df_hist["epoch"], df_hist["val_roc_auc"], label="Val ROC AUC", color="#999999")
-    plt.xlabel("Epoch")
-    plt.ylabel("ROC AUC")
-    plt.title("Classification NN Learning Curve")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "plot1_classification_learning_curve.png")
-    plt.close()
+    with plt.rc_context(PLOT_STYLE):
+        plt.figure(figsize=(6.5, 4.5))
+        plt.plot(df_hist["epoch"], df_hist["train_roc_auc"], label="Train ROC AUC", color=COLOR_PRIMARY)
+        plt.plot(df_hist["epoch"], df_hist["val_roc_auc"], label="Val ROC AUC", color=COLOR_ACCENT)
+        plt.xlabel("Epoch")
+        plt.ylabel("ROC AUC")
+        plt.title("Classification NN Learning Curve")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(FIGURES_DIR / "plot1_classification_learning_curve.png", dpi=300)
+        plt.close()
 
 
 def plot_learning_curve_regression(df_hist: pd.DataFrame):
-    plt.figure()
-    plt.plot(df_hist["epoch"], df_hist["train_rmse"], label="Train RMSE", color="#4d4d4d")
-    plt.plot(df_hist["epoch"], df_hist["val_rmse"], label="Val RMSE", color="#999999")
-    plt.xlabel("Epoch")
-    plt.ylabel("RMSE")
-    plt.title("Regression NN Learning Curve")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "plot2_regression_learning_curve.png")
-    plt.close()
+    with plt.rc_context(PLOT_STYLE):
+        plt.figure(figsize=(6.5, 4.5))
+        plt.plot(df_hist["epoch"], df_hist["train_rmse"], label="Train RMSE", color=COLOR_PRIMARY)
+        plt.plot(df_hist["epoch"], df_hist["val_rmse"], label="Val RMSE", color=COLOR_ACCENT)
+        plt.xlabel("Epoch")
+        plt.ylabel("RMSE")
+        plt.title("Regression NN Learning Curve")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(FIGURES_DIR / "plot2_regression_learning_curve.png", dpi=300)
+        plt.close()
 
 
 def plot_confusion_matrix(model, X_test, y_test, title: str):
-    y_pred = model.predict(X_test)
-    cm = confusion_matrix(y_test, y_pred)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-    disp.plot(cmap="Greys")
-    plt.title(title)
-    plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "plot3_confusion_matrix.png")
-    plt.close()
+    with plt.rc_context(PLOT_STYLE):
+        y_pred = model.predict(X_test)
+        cm = confusion_matrix(y_test, y_pred)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp.plot(cmap="Blues")
+        plt.title(title)
+        plt.tight_layout()
+        plt.savefig(FIGURES_DIR / "plot3_confusion_matrix.png", dpi=300)
+        plt.close()
 
 
 def plot_residuals(model, X_test, y_test, title: str):
-    y_pred = model.predict(X_test)
-    residuals = y_test - y_pred
-    plt.figure()
-    sns.scatterplot(x=y_pred, y=residuals, color="#595959", alpha=0.7)
-    plt.axhline(0, color="#d9d9d9", linestyle="--")
-    plt.title(title)
-    plt.xlabel("Predicted Progression")
-    plt.ylabel("Residual (y_true - y_pred)")
-    plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "plot4_residuals_vs_predicted.png")
-    plt.close()
+    with plt.rc_context(PLOT_STYLE):
+        y_pred = model.predict(X_test)
+        residuals = y_test - y_pred
+        plt.figure(figsize=(6.5, 4.5))
+        sns.scatterplot(x=y_pred, y=residuals, color=COLOR_PRIMARY, alpha=0.7, edgecolor="white", linewidth=0.4)
+        plt.axhline(0, color=COLOR_SECONDARY, linestyle="--", linewidth=1)
+        plt.title(title)
+        plt.xlabel("Predicted Progression")
+        plt.ylabel("Residual (y_true - y_pred)")
+        plt.tight_layout()
+        plt.savefig(FIGURES_DIR / "plot4_residuals_vs_predicted.png", dpi=300)
+        plt.close()
 
 
 def plot_feature_importance(model, X_test, y_test, title: str, feature_names):
@@ -135,14 +150,36 @@ def plot_feature_importance(model, X_test, y_test, title: str, feature_names):
     top_features = [feature_names[i] for i in idx]
     top_scores = result.importances_mean[idx]
 
-    plt.figure(figsize=(8, 6))
-    sns.barplot(x=top_scores, y=top_features, color="#888888")
-    plt.title(title)
-    plt.xlabel("Permutation Importance (Δ ROC AUC)")
-    plt.ylabel("Feature")
-    plt.tight_layout()
-    plt.savefig(FIGURES_DIR / "plot5_feature_importance.png")
-    plt.close()
+    with plt.rc_context(PLOT_STYLE):
+        plt.figure(figsize=(8, 6))
+        sns.barplot(x=top_scores, y=top_features, color=COLOR_PRIMARY)
+        plt.title(title)
+        plt.xlabel("Permutation Importance (Δ ROC AUC)")
+        plt.ylabel("Feature")
+        plt.tight_layout()
+        plt.savefig(FIGURES_DIR / "plot5_feature_importance.png", dpi=300)
+        plt.close()
+
+
+def plot_target_distribution(df: pd.DataFrame):
+    counts = df["label"].value_counts().sort_index()
+    with plt.rc_context(PLOT_STYLE):
+        plt.figure(figsize=(6.5, 4.5))
+        sns.barplot(
+            x=counts.index,
+            y=counts.values,
+            hue=counts.index,
+            palette=[COLOR_SECONDARY, COLOR_PRIMARY],
+            edgecolor="#23395b",
+            linewidth=0.8,
+            legend=False,
+        )
+        plt.title("Target Distribution (High vs Low Progression)")
+        plt.xlabel("Label (0 = Low, 1 = High)")
+        plt.ylabel("Count")
+        plt.tight_layout()
+        plt.savefig(FIGURES_DIR / "plot0_target_distribution.png", dpi=300)
+        plt.close()
 
 
 def main() -> None:
@@ -165,6 +202,9 @@ def main() -> None:
     y_test_reg = y_reg.loc[splits["test"]]
 
     ensure_dirs([FIGURES_DIR, TABLES_DIR])
+
+    # Target distribution with consistent styling
+    plot_target_distribution(df)
 
     # Plot NN learning curves
     plot_learning_curve_classification(load_history("classification_nn"))
