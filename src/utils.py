@@ -1,4 +1,4 @@
-"""Helper functions for reusable splits, dirs, and metrics."""
+#Helper functions for reusable splits, dirs, and metrics.
 
 from __future__ import annotations
 from pathlib import Path
@@ -23,10 +23,10 @@ def get_split_indices(
     test_size: float = 0.15,
     random_state: int = 42,
 ) -> Dict[str, np.ndarray]:
-    """
-    Create a single train/val/test split and return index arrays for each fold.
-    Stratifies on `label_col` to preserve class balance for classification.
-    """
+    #
+   # Create a single train/val/test split and return index arrays for each fold.
+   # Stratifies on `label_col` to preserve class balance for classification.
+    #
     if label_col not in df.columns:
         raise ValueError(f"{label_col} not in dataframe columns")
 
@@ -56,4 +56,5 @@ def regression_metrics(y_true, y_pred) -> Dict[str, float]:
     rmse = float(np.sqrt(mse))
     mae = float(mean_absolute_error(y_true, y_pred))
     return {"mae": mae, "rmse": rmse, "mse": float(mse)}
+
 
