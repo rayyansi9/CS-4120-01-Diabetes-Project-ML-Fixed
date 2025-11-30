@@ -9,6 +9,12 @@ In this project we're trying to predict diabetes progression using 1) Regression
 - Run commands from the repo root so relative paths work.
 - `mlruns/` is gitignored in the start, it will be created when you run the training scripts.
 
+## Running in an IDE (e.g., PyCharm)
+- Point the project to the `.venv` you created (Project Interpreter / Python env).
+- Set the working directory of run configs to the repo root.
+- Use the commands above (e.g., `python src/run_all.py` or `python src/evaluate.py`).
+- If you see `ModuleNotFoundError`, please doubleccheck for the installation of `requirements.txt` into that interpreter.
+
 ## Start here
 - Install packages: `pip install -r requirements.txt`
 - Train Baselines (classical models): `python src/train_baselines.py`
@@ -17,12 +23,6 @@ In this project we're trying to predict diabetes progression using 1) Regression
 - Can also now run the full pipeline at once by running: `python src/run_all.py`
 - Optional can launch MLflow UI: `mlflow ui --backend-store-uri file:mlruns`
 - Extra work : Refreshing older plots in notebook (kept for reference after working on midpoint feedback, residuals histogram only changed to residuals vs predicted too): `python notebooks/refresh_notebook_figures.py`
-
-## Running in an IDE (e.g., PyCharm)
-- Point the project to the `.venv` you created (Project Interpreter / Python env).
-- Set the working directory of run configs to the repo root.
-- Use the commands above (e.g., `python src/run_all.py` or `python src/evaluate.py`).
-- If you see `ModuleNotFoundError`, please doubleccheck for the installation of `requirements.txt` into that interpreter.
 
 ## What and where's the output
 - Plots in `reports/figures/` (learning curves, confusion matrix, residuals, permutation importance).
