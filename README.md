@@ -14,9 +14,9 @@ In this project we're trying to predict diabetes progression using 1) Regression
 ## Setup (to ensure no issues are faced before running)
 - Create/activate a venv (recommended): `python3 -m venv .venv && source .venv/bin/activate` (or your IDE’s venv).
 - Upgrade pip tooling if needed: `pip install --upgrade pip setuptools wheel`.
-- Install deps: `pip install -r requirements.txt`.
+- Install packages: `pip install -r requirements.txt`.
 - Run commands from the repo root so relative paths work.
-- `mlruns/` is gitignored, it will be created when you run the training scripts.
+- `mlruns/` is gitignored in the start, it will be created when you run the training scripts.
 
 ## Running in an IDE (e.g., PyCharm)
 - Point the project to the `.venv` you created (Project Interpreter / Python env).
