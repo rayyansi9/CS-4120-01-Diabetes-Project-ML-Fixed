@@ -3,13 +3,26 @@
 In this project we're trying to predict diabetes progression using 1) Regression is where we calculate the actual progression score and 2) Classification is where we label each case as high or low progression using the median value. After our midpoint feedback, we are now only using one fixed train/validation/test split for everything. In addition, all the models are logged with MLflow, and evaluation loads the saved runs directly, so nothing is being retrained behind.
 
 ## Start here
-- Install deps: `pip install -r requirements.txt`
-- Baselines (classical models): `python src/train_baselines.py`
-- Neural nets (both tasks): `python src/train_nn.py`
-- Plots + comparison tables: `python src/evaluate.py`
-- Everything in one shot: `python src/run_all.py`
-- Optional MLflow UI: `mlflow ui --backend-store-uri file:mlruns`
+- Install packages: `pip install -r requirements.txt`
+- Train Baselines (classical models): `python src/train_baselines.py`
+- Train Neural networks (both tasks): `python src/train_nn.py`
+- Generate Plots & comparison tables: `python src/evaluate.py`
+- Can also now run the full pipeline at once by running: `python src/run_all.py`
+- Optional can launch MLflow UI: `mlflow ui --backend-store-uri file:mlruns`
 - Extra work : Refreshing older plots in notebook (kept for reference after working on midpoint feedback, residuals histogram only changed to residuals vs predicted too): `python notebooks/refresh_notebook_figures.py`
+
+## Setup (to ensure no issues are faced before running)
+- Create/activate a venv (recommended): `python3 -m venv .venv && source .venv/bin/activate` (or your IDE’s venv).
+- Upgrade pip tooling if needed: `pip install --upgrade pip setuptools wheel`.
+- Install deps: `pip install -r requirements.txt`.
+- Run commands from the repo root so relative paths work.
+- `mlruns/` is gitignored, it will be created when you run the training scripts.
+
+## Running in an IDE (e.g., PyCharm)
+- Point the project to the `.venv` you created (Project Interpreter / Python env).
+- Set the working directory of run configs to the repo root.
+- Use the commands above (e.g., `python src/run_all.py` or `python src/evaluate.py`).
+- If you see `ModuleNotFoundError`, please doubleccheck for the installation of `requirements.txt` into that interpreter.
 
 ## What and where's the output
 - Plots in `reports/figures/` (learning curves, confusion matrix, residuals, permutation importance).
