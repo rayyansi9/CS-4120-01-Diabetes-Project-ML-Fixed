@@ -12,7 +12,7 @@ In this project we're trying to predict diabetes progression using 1) Regression
 ## Running in an IDE (e.g., PyCharm)
 - Point the project to the `.venv` you created (Project Interpreter / Python env).
 - Set the working directory of run configs to the repo root.
-- Use the commands above (e.g., `python src/run_all.py` or `python src/evaluate.py`).
+- Use the commands below in Start here next (e.g., 'python src/train_baselines.py', 'python src/run_all.py' or 'python src/evaluate.py').
 - If you see `ModuleNotFoundError`, please doubleccheck for the installation of `requirements.txt` into that interpreter.
 
 ## Start here
