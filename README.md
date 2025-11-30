@@ -2,6 +2,13 @@
 
 In this project we're trying to predict diabetes progression using 1) Regression is where we calculate the actual progression score and 2) Classification is where we label each case as high or low progression using the median value. After our midpoint feedback, we are now only using one fixed train/validation/test split for everything. In addition, all the models are logged with MLflow, and evaluation loads the saved runs directly, so nothing is being retrained behind.
 
+## Setup (please try to do this first to ensure no issues are faced before running)
+- Create/activate a venv (recommended): `python3 -m venv .venv && source .venv/bin/activate` (or your IDE’s venv).
+- Upgrade pip tooling if needed: `pip install --upgrade pip setuptools wheel`.
+- Install packages: `pip install -r requirements.txt`.
+- Run commands from the repo root so relative paths work.
+- `mlruns/` is gitignored in the start, it will be created when you run the training scripts.
+
 ## Start here
 - Install packages: `pip install -r requirements.txt`
 - Train Baselines (classical models): `python src/train_baselines.py`
@@ -10,13 +17,6 @@ In this project we're trying to predict diabetes progression using 1) Regression
 - Can also now run the full pipeline at once by running: `python src/run_all.py`
 - Optional can launch MLflow UI: `mlflow ui --backend-store-uri file:mlruns`
 - Extra work : Refreshing older plots in notebook (kept for reference after working on midpoint feedback, residuals histogram only changed to residuals vs predicted too): `python notebooks/refresh_notebook_figures.py`
-
-## Setup (to ensure no issues are faced before running)
-- Create/activate a venv (recommended): `python3 -m venv .venv && source .venv/bin/activate` (or your IDE’s venv).
-- Upgrade pip tooling if needed: `pip install --upgrade pip setuptools wheel`.
-- Install packages: `pip install -r requirements.txt`.
-- Run commands from the repo root so relative paths work.
-- `mlruns/` is gitignored in the start, it will be created when you run the training scripts.
 
 ## Running in an IDE (e.g., PyCharm)
 - Point the project to the `.venv` you created (Project Interpreter / Python env).
